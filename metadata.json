@@ -1,0 +1,6 @@
+{
+  "name": "Placar - Rei da Mesa",
+  "description": "Micro SaaS para contagem de partidas de sinuca entre amigos, ranking animado para telão, saldo de apostas e registros de lambreta.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

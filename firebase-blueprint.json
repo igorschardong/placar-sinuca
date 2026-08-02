@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered player participant in the pool leaderboard",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "nickname": { "type": "string" },
+        "title": { "type": "string" },
+        "avatarBall": { "type": "number" },
+        "avatarColor": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "initialWins": { "type": "number" },
+        "initialLosses": { "type": "number" },
+        "initialLambretas": { "type": "number" }
+      },
+      "required": ["id", "username", "nickname", "avatarBall", "avatarColor"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Recorded billard match result between two players",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "winnerId": { "type": "string" },
+        "loserId": { "type": "string" },
+        "isLambreta": { "type": "boolean" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "date", "winnerId", "loserId", "isLambreta", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Collection of all registered billiard players"
+    },
+    "/matches/{matchId}": {
+      "schema": { "$ref": "#/entities/Match" },
+      "description": "Collection of recorded matches"
+    }
+  }
+}
