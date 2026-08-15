@@ -116,21 +116,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* User Profile / Login */}
             {currentUser ? (
               <div className="flex items-center space-x-1.5 sm:space-x-2 glass-dark pl-1.5 sm:pl-2 pr-1.5 sm:pr-2 py-1 rounded-full border border-white/15 text-xs">
-                <BilliardBallAvatar number={currentUser.avatarBall} color={currentUser.avatarColor} size="sm" />
-                <div className="hidden md:block text-left">
-                  <div className="font-extrabold text-amber-200 truncate max-w-[120px]">{currentUser.nickname}</div>
-                  <div className="text-[9px] text-amber-300/80 font-black uppercase tracking-wider truncate max-w-[120px]">
-                    {getPlayerTitle(currentUser)}
+                <button
+                  onClick={onOpenEditProfile}
+                  className="flex items-center space-x-1.5 text-left hover:opacity-80 transition-opacity"
+                  title="Clique para alterar seu ícone, apelido e título"
+                >
+                  <BilliardBallAvatar number={currentUser.avatarBall} color={currentUser.avatarColor} size="sm" />
+                  <div className="hidden md:block text-left">
+                    <div className="font-extrabold text-amber-200 truncate max-w-[120px]">{currentUser.nickname}</div>
+                    <div className="text-[9px] text-amber-300/80 font-black uppercase tracking-wider truncate max-w-[120px]">
+                      {getPlayerTitle(currentUser)}
+                    </div>
                   </div>
-                </div>
+                </button>
+
                 {onOpenEditProfile && (
                   <button
                     onClick={onOpenEditProfile}
-                    className="text-[10px] sm:text-[11px] text-amber-300 hover:text-amber-100 font-extrabold flex items-center space-x-1 bg-amber-400/20 hover:bg-amber-400/30 p-1 sm:px-2 sm:py-0.5 rounded-full border border-amber-400/30 transition-all"
-                    title="Editar Saldo Histórico e Perfil"
+                    className="text-[10px] sm:text-[11px] text-amber-300 hover:text-amber-100 font-extrabold flex items-center space-x-1 bg-amber-400/20 hover:bg-amber-400/30 p-1 sm:px-2.5 sm:py-0.5 rounded-full border border-amber-400/30 transition-all shadow-sm"
+                    title="Alterar Ícone, Apelido, Título e Saldo"
                   >
                     <Edit3 className="w-3 h-3 text-amber-300" />
-                    <span className="hidden sm:inline">Editar Saldo</span>
+                    <span className="hidden sm:inline">Editar Perfil</span>
                   </button>
                 )}
                 <button
