@@ -264,16 +264,23 @@ export function calculatePlayerStats(users: User[], matches: Match[]): PlayerSta
     const initWins = u.initialWins || 0;
     const initLosses = u.initialLosses || 0;
     const initLambretas = u.initialLambretas || 0;
+    const initMatches = initWins + initLosses;
+
+    // Regra: Vitória = 1 ponto, Derrota = 0 ponto, Lambreta = 3 pontos (equivale a 3 vitórias)
+    // Se initWins inclui lambretas: (initWins - initLambretas) * 1 + (initLambretas * 3) = initWins + (initLambretas * 2)
+    const initPoints = (initWins * 1) + (initLambretas * 2);
 
     statsMap.set(u.id, {
       user: { ...u },
       rank: 0,
-      matchesPlayed: initWins + initLosses,
+      matchesPlayed: initMatches,
       wins: initWins,
       losses: initLosses,
       winRate: 0,
-      points: (initWins * 3) + (initLambretas * 1),
+      points: Math.max(0, initPoints),
       lambretasCount: initLambretas,
+      pointsPerGame: 0,
+      weightedAverage: 0,
       streak: { type: 'none', count: 0 },
     });
   });
@@ -288,10 +295,14 @@ export function calculatePlayerStats(users: User[], matches: Match[]): PlayerSta
     if (winnerStats) {
       winnerStats.matchesPlayed += 1;
       winnerStats.wins += 1;
-      winnerStats.points += 3; // 3 points per win
+      // Regra de pontuação:
+      // Vitória normal = 1 ponto
+      // Lambreta = 3 pontos (equivale a 3 vitórias)
       if (m.isLambreta) {
         winnerStats.lambretasCount += 1;
-        winnerStats.points += 1; // 1 extra bonus point for Lambreta!
+        winnerStats.points += 3;
+      } else {
+        winnerStats.points += 1;
       }
 
       // Streak update
@@ -306,6 +317,7 @@ export function calculatePlayerStats(users: User[], matches: Match[]): PlayerSta
     if (loserStats) {
       loserStats.matchesPlayed += 1;
       loserStats.losses += 1;
+      // Derrota = 0 ponto
 
       // Streak update
       if (loserStats.streak.type === 'loss') {
@@ -317,29 +329,49 @@ export function calculatePlayerStats(users: User[], matches: Match[]): PlayerSta
     }
   });
 
-  // Calculate Win Rates and update object
-  const list: PlayerStats[] = Array.from(statsMap.values()).map(s => {
+  // Calculate Win Rates, Points Per Game and Weighted Average
+  const allStats: PlayerStats[] = Array.from(statsMap.values()).map(s => {
     s.winRate = s.matchesPlayed > 0 ? Math.round((s.wins / s.matchesPlayed) * 100) : 0;
+    s.pointsPerGame = s.matchesPlayed > 0 ? Number((s.points / s.matchesPlayed).toFixed(2)) : 0;
+    
+    // Média Ponderada baseada em jogos:
+    // Ponderação bayesiana suave para equilibrar aproveitamento médio e consistência/volume de partidas
+    // (Pontos + C * Base) / (Jogos + C) onde C=2 jogos e Base=1.00 pt/jogo
+    if (s.matchesPlayed > 0) {
+      const C = 2; // Constante de amortização de confiança
+      const baselineScore = 1.0;
+      const bayesian = (s.points + (C * baselineScore)) / (s.matchesPlayed + C);
+      s.weightedAverage = Number(bayesian.toFixed(2));
+    } else {
+      s.weightedAverage = 0;
+    }
     return s;
   });
 
-  // Sort by Ranking criteria:
-  // 1. Total Points (Wins*3 + Lambreta*1)
-  // 2. Total Wins
-  // 3. Lambretas Count
-  // 4. Win Rate %
-  list.sort((a, b) => {
+  // Separate players with matches from players with 0 matches
+  // REGRA: Se não tiver jogos, NÃO entra no ranking!
+  const rankedPlayers = allStats.filter(s => s.matchesPlayed > 0);
+  const unrankedPlayers = allStats.filter(s => s.matchesPlayed === 0);
+
+  // Sort ranked players by default Points criteria
+  rankedPlayers.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
+    if (b.weightedAverage !== a.weightedAverage) return b.weightedAverage - a.weightedAverage;
     if (b.wins !== a.wins) return b.wins - a.wins;
     if (b.lambretasCount !== a.lambretasCount) return b.lambretasCount - a.lambretasCount;
     return b.winRate - a.winRate;
   });
 
-  // Assign ranks
-  list.forEach((item, index) => {
+  // Assign ranks strictly to players who have played at least 1 match
+  rankedPlayers.forEach((item, index) => {
     item.rank = index + 1;
   });
 
-  return list;
+  // Unranked players keep rank = 0
+  unrankedPlayers.forEach(item => {
+    item.rank = 0;
+  });
+
+  return [...rankedPlayers, ...unrankedPlayers];
 }
 
