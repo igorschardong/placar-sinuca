@@ -8,6 +8,7 @@ import {
   calculatePlayerStats,
   subscribeToUsers,
   subscribeToMatches,
+  forceSyncAllData,
 } from './lib/storage';
 import { testFirebaseConnection } from './lib/firebase';
 import { Navbar } from './components/Navbar';
@@ -27,6 +28,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [currentUserId, setCurrentUserIdState] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Modals state
   const [isLogMatchOpen, setIsLogMatchOpen] = useState(false);
@@ -47,9 +49,30 @@ export default function App() {
     setCurrentUserIdState(cId);
   };
 
+  const handleForceSync = async () => {
+    setIsSyncing(true);
+    try {
+      await forceSyncAllData();
+      reloadData();
+    } finally {
+      setTimeout(() => setIsSyncing(false), 600);
+    }
+  };
+
   useEffect(() => {
     reloadData();
     testFirebaseConnection();
+
+    // Initial reconciliation upload if any local items exist
+    forceSyncAllData().catch(console.error);
+
+    // Cross-tab synchronization
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key?.startsWith('sinuca_saas')) {
+        reloadData();
+      }
+    };
+    window.addEventListener('storage', handleStorageEvent);
 
     // Subscribe to real-time Firestore updates
     const unsubscribeUsers = subscribeToUsers((updatedUsers) => {
@@ -60,6 +83,7 @@ export default function App() {
     });
 
     return () => {
+      window.removeEventListener('storage', handleStorageEvent);
       unsubscribeUsers();
       unsubscribeMatches();
     };
@@ -135,6 +159,8 @@ export default function App() {
         onOpenDeployment={() => setIsDeploymentOpen(true)}
         soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled}
+        isSyncing={isSyncing}
+        onForceSync={handleForceSync}
       />
 
       {/* Main Body */}
