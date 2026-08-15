@@ -32,8 +32,10 @@ export interface PlayerStats {
   wins: number;
   losses: number;
   winRate: number; // Percentage 0-100
-  points: number; // Wins * 3 + Lambretas * 1
+  points: number; // Wins * 1 + Lambretas * 3
   lambretasCount: number;
+  pointsPerGame: number; // Média de pontos por jogo (ex: 2.50)
+  weightedAverage: number; // Média ponderada baseada em jogos
   streak: {
     type: 'win' | 'loss' | 'none';
     count: number;
