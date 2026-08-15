@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, Trophy, PlusCircle, Tv, UserPlus, LogIn, Volume2, VolumeX, History, Edit3 } from 'lucide-react';
+import { LogOut, Trophy, PlusCircle, Tv, UserPlus, LogIn, Volume2, VolumeX, History, Edit3, RefreshCw, Cloud } from 'lucide-react';
 import { User, AppTab } from '../types';
 import { BilliardBallAvatar } from './BilliardBallAvatar';
 import { soundFx } from '../lib/audio';
@@ -17,6 +17,8 @@ interface NavbarProps {
   onOpenDeployment: () => void;
   soundEnabled: boolean;
   setSoundEnabled: (enabled: boolean) => void;
+  isSyncing?: boolean;
+  onForceSync?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -31,6 +33,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenDeployment,
   soundEnabled,
   setSoundEnabled,
+  isSyncing = false,
+  onForceSync,
 }) => {
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -61,6 +65,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action Center (Primary CTA Buttons) */}
           <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
+            {/* Cloud Sync Button */}
+            {onForceSync && (
+              <button
+                onClick={onForceSync}
+                disabled={isSyncing}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl glass-dark hover:bg-white/10 text-emerald-300 border border-emerald-500/30 transition-all flex items-center space-x-1.5 text-xs font-semibold"
+                title="Sincronização em tempo real entre todos os celulares, computadores e telão"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className="hidden md:inline text-[11px] text-emerald-300">
+                  {isSyncing ? 'Sincronizando...' : 'Nuvem Ao Vivo'}
+                </span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse hidden sm:inline-block" />
+              </button>
+            )}
+
             {/* Log Match CTA */}
             <button
               onClick={onOpenLogMatch}
