@@ -10,26 +10,59 @@ const AUTH_USER_KEY = 'sinuca_saas_current_user_id_v4';
 const DEFAULT_USERS: User[] = [];
 const DEFAULT_MATCHES: Match[] = [];
 
-// Realtime Firestore Subscriptions
+// Helper to clean undefined values before sending to Firestore
+export function cleanFirestoreData<T extends Record<string, any>>(obj: T): T {
+  const clean: Record<string, any> = {};
+  Object.keys(obj).forEach((key) => {
+    const val = obj[key];
+    if (val !== undefined) {
+      clean[key] = val;
+    }
+  });
+  return clean as T;
+}
+
+// Realtime Firestore Subscriptions with automatic 2-way cloud reconciliation
 export function subscribeToUsers(callback: (users: User[]) => void) {
   try {
     const q = query(collection(db, 'users'));
     return onSnapshot(
       q,
       (snapshot) => {
-        const users: User[] = [];
+        const cloudUsers: User[] = [];
         snapshot.forEach((docSnap) => {
-          users.push(docSnap.data() as User);
+          cloudUsers.push(docSnap.data() as User);
         });
-        if (users.length > 0) {
-          saveUsers(users);
-          callback(users);
+
+        const localUsers = getUsers();
+
+        if (cloudUsers.length > 0) {
+          // Upload any local user that hasn't reached cloud yet
+          const cloudIds = new Set(cloudUsers.map(u => u.id));
+          localUsers.forEach(u => {
+            if (!cloudIds.has(u.id)) {
+              setDoc(doc(db, 'users', u.id), cleanFirestoreData(u)).catch(err =>
+                console.warn('Syncing local user to cloud:', err)
+              );
+            }
+          });
+
+          saveUsers(cloudUsers);
+          callback(cloudUsers);
+        } else if (localUsers.length > 0) {
+          // Cloud was empty: populate cloud with current local users
+          localUsers.forEach(u => {
+            setDoc(doc(db, 'users', u.id), cleanFirestoreData(u)).catch(err =>
+              console.warn('Initial cloud user upload:', err)
+            );
+          });
+          callback(localUsers);
         } else {
-          callback(getUsers());
+          saveUsers([]);
+          callback([]);
         }
       },
       (error) => {
-        // Silently fallback to LocalStorage if offline or connection unavailable
         if (error?.code !== 'unavailable') {
           console.warn('Firestore users subscription status:', error?.message || error);
         }
@@ -48,20 +81,41 @@ export function subscribeToMatches(callback: (matches: Match[]) => void) {
     return onSnapshot(
       q,
       (snapshot) => {
-        const matches: Match[] = [];
+        const cloudMatches: Match[] = [];
         snapshot.forEach((docSnap) => {
-          matches.push(docSnap.data() as Match);
+          cloudMatches.push(docSnap.data() as Match);
         });
-        matches.sort((a, b) => b.createdAt - a.createdAt);
-        if (matches.length > 0) {
-          saveMatches(matches);
-          callback(matches);
+        cloudMatches.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        const localMatches = getMatches();
+
+        if (cloudMatches.length > 0) {
+          // Upload any local match that hasn't reached cloud yet
+          const cloudIds = new Set(cloudMatches.map(m => m.id));
+          localMatches.forEach(m => {
+            if (!cloudIds.has(m.id)) {
+              setDoc(doc(db, 'matches', m.id), cleanFirestoreData(m)).catch(err =>
+                console.warn('Syncing local match to cloud:', err)
+              );
+            }
+          });
+
+          saveMatches(cloudMatches);
+          callback(cloudMatches);
+        } else if (localMatches.length > 0) {
+          // Cloud was empty: populate cloud with current local matches
+          localMatches.forEach(m => {
+            setDoc(doc(db, 'matches', m.id), cleanFirestoreData(m)).catch(err =>
+              console.warn('Initial cloud match upload:', err)
+            );
+          });
+          callback(localMatches);
         } else {
-          callback(getMatches());
+          saveMatches([]);
+          callback([]);
         }
       },
       (error) => {
-        // Silently fallback to LocalStorage if offline or connection unavailable
         if (error?.code !== 'unavailable') {
           console.warn('Firestore matches subscription status:', error?.message || error);
         }
@@ -185,8 +239,8 @@ export function createUser(userData: {
   users.push(newUser);
   saveUsers(users);
 
-  // Sync with Firestore
-  setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
+  // Sync with Firestore (cleaned of undefined)
+  setDoc(doc(db, 'users', newUser.id), cleanFirestoreData(newUser)).catch((err) => {
     console.error('Firestore setDoc user error:', err);
   });
 
@@ -205,8 +259,8 @@ export function updateUser(userId: string, updateData: Partial<User>): User | nu
   };
   saveUsers(users);
 
-  // Sync with Firestore
-  setDoc(doc(db, 'users', userId), users[index], { merge: true }).catch((err) => {
+  // Sync with Firestore (cleaned of undefined)
+  setDoc(doc(db, 'users', userId), cleanFirestoreData(users[index]), { merge: true }).catch((err) => {
     console.error('Firestore setDoc update user error:', err);
   });
 
@@ -235,8 +289,8 @@ export function addMatch(matchData: {
   matches.unshift(newMatch); // newest first
   saveMatches(matches);
 
-  // Sync with Firestore
-  setDoc(doc(db, 'matches', newMatch.id), newMatch).catch((err) => {
+  // Sync with Firestore (cleaned of undefined)
+  setDoc(doc(db, 'matches', newMatch.id), cleanFirestoreData(newMatch)).catch((err) => {
     console.error('Firestore setDoc match error:', err);
   });
 
@@ -253,6 +307,28 @@ export function deleteMatch(matchId: string) {
   deleteDoc(doc(db, 'matches', matchId)).catch((err) => {
     console.error('Firestore deleteDoc match error:', err);
   });
+}
+
+// Manual force reconciliation for all devices
+export async function forceSyncAllData(): Promise<{ usersCount: number; matchesCount: number }> {
+  try {
+    const localUsers = getUsers();
+    const localMatches = getMatches();
+
+    // Upload local users
+    for (const u of localUsers) {
+      await setDoc(doc(db, 'users', u.id), cleanFirestoreData(u), { merge: true }).catch(console.error);
+    }
+    // Upload local matches
+    for (const m of localMatches) {
+      await setDoc(doc(db, 'matches', m.id), cleanFirestoreData(m), { merge: true }).catch(console.error);
+    }
+
+    return { usersCount: localUsers.length, matchesCount: localMatches.length };
+  } catch (e) {
+    console.error('Error during forceSyncAllData:', e);
+    return { usersCount: 0, matchesCount: 0 };
+  }
 }
 
 // Calculate Player Stats & Rankings
