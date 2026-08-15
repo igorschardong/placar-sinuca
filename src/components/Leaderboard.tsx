@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Flame, Award, PlusCircle, Search, Crown, Scale, HelpCircle, Users, Sparkles } from 'lucide-react';
+import { Trophy, Flame, Award, PlusCircle, Search, Crown, Scale, HelpCircle, Users, Sparkles, Edit3 } from 'lucide-react';
 import { PlayerStats } from '../types';
 import { BilliardBallAvatar } from './BilliardBallAvatar';
 import { getPlayerTitle } from '../lib/storage';
 
 interface LeaderboardProps {
   stats: PlayerStats[];
+  currentUserId?: string | null;
   onOpenLogMatch: () => void;
   onOpenRegister: () => void;
+  onOpenEditProfile?: () => void;
 }
 
 type FilterType = 'points' | 'weighted' | 'wins' | 'lambretas';
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({
   stats,
+  currentUserId,
   onOpenLogMatch,
   onOpenRegister,
+  onOpenEditProfile,
 }) => {
   const [filter, setFilter] = useState<FilterType>('points');
   const [searchQuery, setSearchQuery] = useState('');
@@ -387,6 +391,23 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                           <span className={isTop1 ? 'text-amber-300 font-black' : isLast ? 'text-red-300 font-bold' : ''}>
                             {item.user.nickname}
                           </span>
+                          {currentUserId === item.user.id && (
+                            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase">
+                              Você
+                            </span>
+                          )}
+                          {currentUserId === item.user.id && onOpenEditProfile && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenEditProfile();
+                              }}
+                              className="text-amber-400 hover:text-amber-200 p-0.5 rounded hover:bg-white/10"
+                              title="Alterar seu ícone, nome e título"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
 
                         {/* Always Displayed Player Title */}
