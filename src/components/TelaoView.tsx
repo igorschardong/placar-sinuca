@@ -21,8 +21,10 @@ export const TelaoView: React.FC<TelaoViewProps> = ({ stats, matches, onExit }) 
     return () => clearInterval(timer);
   }, []);
 
-  const topPlayer = stats[0];
-  const lastPlayer = stats.length > 1 ? stats[stats.length - 1] : null;
+  // REGRA: Apenas jogadores com partidas entram no ranking do telão
+  const rankedStats = stats.filter(s => s.matchesPlayed > 0);
+  const topPlayer = rankedStats.length > 0 ? rankedStats[0] : null;
+  const lastPlayer = rankedStats.length > 1 ? rankedStats[rankedStats.length - 1] : null;
   const recentMatches = matches.slice(0, 5);
 
   const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://ais-dev-7cpdpxrt63chckicc35vbm-714465855824.us-east1.run.app';
@@ -282,84 +284,91 @@ export const TelaoView: React.FC<TelaoViewProps> = ({ stats, matches, onExit }) 
           </div>
 
           <div className="divide-y divide-white/5">
-            <AnimatePresence mode="popLayout">
-              {stats.map((item, idx) => {
-                const isTop1 = item.rank === 1;
-                const isTop2 = item.rank === 2;
-                const isTop3 = item.rank === 3;
-                const isLast = item.rank === stats.length && stats.length > 1;
+            {rankedStats.length === 0 ? (
+              <div className="p-8 text-center text-slate-300 text-sm">
+                Nenhum jogador possui partidas registradas no momento.
+              </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {rankedStats.map((item, idx) => {
+                  const isTop1 = item.rank === 1;
+                  const isTop2 = item.rank === 2;
+                  const isTop3 = item.rank === 3;
+                  const isLast = item.rank === rankedStats.length && rankedStats.length > 1;
 
-                return (
-                  <motion.div
-                    key={item.user.id}
-                    layout
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                    className={`flex items-center justify-between p-3.5 sm:p-4 transition-colors ${
-                      isTop1
-                        ? 'glass-dark border-l-8 border-amber-400 bg-amber-500/5'
-                        : isTop2
-                        ? 'glass-dark border-l-8 border-slate-300'
-                        : isTop3
-                        ? 'glass-dark border-l-8 border-amber-700'
-                        : isLast
-                        ? 'glass-dark border-l-8 border-red-500 bg-red-500/10'
-                        : 'hover:bg-white/10'
-                    }`}
-                  >
-                    {/* Rank & Player */}
-                    <div className="flex items-center space-x-4">
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-black text-base sm:text-lg shadow">
-                        {isTop1 ? (
-                          <span className="bg-amber-400 text-slate-950 w-full h-full rounded-full flex items-center justify-center">👑</span>
-                        ) : isTop2 ? (
-                          <span className="bg-slate-300 text-slate-950 w-full h-full rounded-full flex items-center justify-center">2º</span>
-                        ) : isTop3 ? (
-                          <span className="bg-amber-700 text-white w-full h-full rounded-full flex items-center justify-center">3º</span>
-                        ) : isLast ? (
-                          <span className="bg-red-950 text-red-300 border border-red-500 w-full h-full rounded-full flex items-center justify-center">💩</span>
-                        ) : (
-                          <span className="text-slate-400">{item.rank}º</span>
-                        )}
-                      </div>
-
-                      <BilliardBallAvatar
-                        number={item.user.avatarBall}
-                        color={item.user.avatarColor}
-                        size="md"
-                      />
-
-                      <div>
-                        <div className="font-extrabold text-sm sm:text-lg text-slate-100 flex flex-wrap items-center gap-1.5">
-                          <span className={isTop1 ? 'text-amber-300 font-black' : isLast ? 'text-red-300 font-bold' : ''}>
-                            {item.user.nickname}
-                          </span>
-                          <span className="text-[10px] sm:text-xs bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full font-extrabold border border-amber-400/30">
-                            {getPlayerTitle(item.user, item, stats.length)}
-                          </span>
-                          {item.lambretasCount > 0 && (
-                            <span className="bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-bold">
-                              🚗 {item.lambretasCount}
-                            </span>
+                  return (
+                    <motion.div
+                      key={item.user.id}
+                      layout
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                      className={`flex items-center justify-between p-3.5 sm:p-4 transition-colors ${
+                        isTop1
+                          ? 'glass-dark border-l-8 border-amber-400 bg-amber-500/5'
+                          : isTop2
+                          ? 'glass-dark border-l-8 border-slate-300'
+                          : isTop3
+                          ? 'glass-dark border-l-8 border-amber-700'
+                          : isLast
+                          ? 'glass-dark border-l-8 border-red-500 bg-red-500/10'
+                          : 'hover:bg-white/10'
+                      }`}
+                    >
+                      {/* Rank & Player */}
+                      <div className="flex items-center space-x-4">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-black text-base sm:text-lg shadow">
+                          {isTop1 ? (
+                            <span className="bg-amber-400 text-slate-950 w-full h-full rounded-full flex items-center justify-center">👑</span>
+                          ) : isTop2 ? (
+                            <span className="bg-slate-300 text-slate-950 w-full h-full rounded-full flex items-center justify-center">2º</span>
+                          ) : isTop3 ? (
+                            <span className="bg-amber-700 text-white w-full h-full rounded-full flex items-center justify-center">3º</span>
+                          ) : isLast ? (
+                            <span className="bg-red-950 text-red-300 border border-red-500 w-full h-full rounded-full flex items-center justify-center">💩</span>
+                          ) : (
+                            <span className="text-slate-400">{item.rank}º</span>
                           )}
                         </div>
 
-                        <div className="text-xs text-emerald-400 font-semibold mt-0.5">
-                          {item.wins} Vitórias / {item.losses} Derrotas ({item.winRate}% aproveitamento)
+                        <BilliardBallAvatar
+                          number={item.user.avatarBall}
+                          color={item.user.avatarColor}
+                          size="md"
+                        />
+
+                        <div>
+                          <div className="font-extrabold text-sm sm:text-lg text-slate-100 flex flex-wrap items-center gap-1.5">
+                            <span className={isTop1 ? 'text-amber-300 font-black' : isLast ? 'text-red-300 font-bold' : ''}>
+                              {item.user.nickname}
+                            </span>
+                            <span className="text-[10px] sm:text-xs bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full font-extrabold border border-amber-400/30">
+                              {getPlayerTitle(item.user, item, rankedStats.length)}
+                            </span>
+                            {item.lambretasCount > 0 && (
+                              <span className="bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-bold">
+                                🚗 {item.lambretasCount}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-xs text-emerald-400 font-semibold mt-0.5">
+                            {item.wins}V / {item.losses}D ({item.winRate}% aproveitamento) • {item.pointsPerGame} pts/j
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Score */}
-                    <div className="text-right">
-                      <div className="text-lg sm:text-2xl font-black text-amber-300">{item.points} PTS</div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                      {/* Score */}
+                      <div className="text-right">
+                        <div className="text-lg sm:text-2xl font-black text-amber-300">{item.points} PTS</div>
+                        <div className="text-[10px] text-emerald-300 font-semibold">Média Pond: {item.weightedAverage}</div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            )}
           </div>
         </div>
       </div>

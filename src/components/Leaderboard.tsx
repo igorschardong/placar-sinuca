@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Flame, Award, PlusCircle, Search, Skull, Crown, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Trophy, Flame, Award, PlusCircle, Search, Crown, Scale, HelpCircle, Users, Sparkles } from 'lucide-react';
 import { PlayerStats } from '../types';
 import { BilliardBallAvatar } from './BilliardBallAvatar';
 import { getPlayerTitle } from '../lib/storage';
@@ -11,25 +11,45 @@ interface LeaderboardProps {
   onOpenRegister: () => void;
 }
 
-type FilterType = 'all' | 'lambretas' | 'wins';
+type FilterType = 'points' | 'weighted' | 'wins' | 'lambretas';
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({
   stats,
   onOpenLogMatch,
   onOpenRegister,
 }) => {
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useState<FilterType>('points');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showUnranked, setShowUnranked] = useState(false);
 
-  // Filter & Sort stats based on active tab
-  let sortedStats = [...stats];
+  // REGRA CRÍTICA: Se não tiver jogos, NÃO entra no ranking!
+  const rankedPlayers = stats.filter(s => s.matchesPlayed > 0);
+  const unrankedPlayers = stats.filter(s => s.matchesPlayed === 0);
 
-  if (filter === 'lambretas') {
-    sortedStats.sort((a, b) => b.lambretasCount - a.lambretasCount || b.points - a.points);
+  // Filter & Sort stats based on active classification mode
+  let sortedStats = [...rankedPlayers];
+
+  if (filter === 'weighted') {
+    // Classificação por Média Ponderada baseada em jogos
+    sortedStats.sort((a, b) => {
+      if (b.weightedAverage !== a.weightedAverage) return b.weightedAverage - a.weightedAverage;
+      if (b.pointsPerGame !== a.pointsPerGame) return b.pointsPerGame - a.pointsPerGame;
+      if (b.points !== a.points) return b.points - a.points;
+      return b.matchesPlayed - a.matchesPlayed;
+    });
+  } else if (filter === 'lambretas') {
+    sortedStats.sort((a, b) => b.lambretasCount - a.lambretasCount || b.points - a.points || b.wins - a.wins);
   } else if (filter === 'wins') {
     sortedStats.sort((a, b) => b.wins - a.wins || b.points - a.points);
   } else {
-    sortedStats.sort((a, b) => b.points - a.points || b.wins - a.wins);
+    // Classificação Padrão por Pontos Totais
+    sortedStats.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.weightedAverage !== a.weightedAverage) return b.weightedAverage - a.weightedAverage;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.lambretasCount !== a.lambretasCount) return b.lambretasCount - a.lambretasCount;
+      return b.winRate - a.winRate;
+    });
   }
 
   if (searchQuery.trim()) {
@@ -39,15 +59,44 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     );
   }
 
-  const topPlayer = stats.length > 0 ? stats[0] : null;
-  const lastPlayer = stats.length > 1 ? stats[stats.length - 1] : null;
+  const topPlayer = sortedStats.length > 0 ? sortedStats[0] : null;
+  const lastPlayer = sortedStats.length > 1 ? sortedStats[sortedStats.length - 1] : null;
 
   return (
     <div className="space-y-6">
+      {/* Scoring Scheme Banner Card */}
+      <div className="glass-dark border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-slate-200">
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 flex items-center justify-center shrink-0">
+            <Trophy className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <div className="font-extrabold text-amber-300 text-sm flex items-center space-x-1.5">
+              <span>Esquema Oficial de Pontuação</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-emerald-200 font-medium">
+              <span className="bg-emerald-950/80 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                🟢 Vitória = <strong className="text-emerald-300 font-bold">1 ponto</strong>
+              </span>
+              <span className="bg-emerald-950/80 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                🔴 Derrota = <strong className="text-red-300 font-bold">0 pontos</strong>
+              </span>
+              <span className="bg-amber-400/20 px-2 py-0.5 rounded-lg border border-amber-400/40 text-amber-300 font-bold">
+                🚗💨 Lambreta = <strong>3 pontos</strong> (equivale a 3 vitórias)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-emerald-300/80 italic shrink-0">
+          *Jogadores sem partidas não pontuam nem entram no ranking.
+        </div>
+      </div>
+
       {/* High Evidence Dual Highlight: Rei (1st) and Vexame (Last) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* King of the Table (1st Place) - Spans 2 Cols on MD */}
-        {topPlayer && (
+        {topPlayer ? (
           <div className="md:col-span-2 glass rounded-[32px] p-5 sm:p-6 shadow-2xl relative overflow-hidden lambreta-glow border-2 border-amber-400/80">
             {/* Subtle Ambient Glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
@@ -82,19 +131,19 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   </h1>
                   <div className="mt-1">
                     <span className="text-xs sm:text-sm font-extrabold text-amber-200 bg-amber-400/20 px-3 py-1 rounded-full border border-amber-400/40 inline-block">
-                      {getPlayerTitle(topPlayer.user, topPlayer, stats.length)}
+                      {getPlayerTitle(topPlayer.user, topPlayer, sortedStats.length)}
                     </span>
                   </div>
 
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2 text-xs sm:text-sm text-emerald-200/90 font-medium">
                     <span className="bg-emerald-950/80 px-2.5 py-1 rounded-xl border border-emerald-500/30">
-                      <strong className="text-amber-300 font-extrabold">{topPlayer.points}</strong> Pontos
+                      <strong className="text-amber-300 font-extrabold">{topPlayer.points}</strong> Pontos Totais
                     </span>
                     <span className="bg-emerald-950/80 px-2.5 py-1 rounded-xl border border-emerald-500/30">
-                      <strong className="text-emerald-300 font-bold">{topPlayer.wins}</strong> Vitórias / <strong className="text-red-300">{topPlayer.losses}</strong> Derrotas
+                      <strong className="text-amber-300 font-bold">{topPlayer.weightedAverage}</strong> Média Ponderada
                     </span>
                     <span className="bg-emerald-950/80 px-2.5 py-1 rounded-xl border border-emerald-500/30">
-                      <strong className="text-amber-300">{topPlayer.winRate}%</strong> Taxa
+                      <strong className="text-emerald-300 font-bold">{topPlayer.wins}V</strong> / <strong className="text-red-300">{topPlayer.losses}D</strong> ({topPlayer.matchesPlayed} jogos)
                     </span>
                   </div>
                 </div>
@@ -111,6 +160,20 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="md:col-span-2 glass rounded-[32px] p-6 text-center border border-white/10 flex flex-col items-center justify-center space-y-2">
+            <Trophy className="w-10 h-10 text-amber-400/60" />
+            <h3 className="font-extrabold text-lg text-amber-200">Aguardando primeiras partidas</h3>
+            <p className="text-xs text-slate-300 max-w-md">
+              Nenhum jogador disputou partidas ainda. Registre o primeiro confronto para iniciar o ranking!
+            </p>
+            <button
+              onClick={onOpenLogMatch}
+              className="mt-2 px-4 py-2 bg-emerald-500 text-slate-950 font-black rounded-xl text-xs uppercase"
+            >
+              Registrar 1º Jogo
+            </button>
           </div>
         )}
 
@@ -139,7 +202,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                     {lastPlayer.user.nickname}
                   </div>
                   <div className="text-[11px] text-amber-300 font-extrabold bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30 inline-block mt-1">
-                    {getPlayerTitle(lastPlayer.user, lastPlayer, stats.length)}
+                    {getPlayerTitle(lastPlayer.user, lastPlayer, sortedStats.length)}
                   </div>
                 </div>
               </div>
@@ -156,8 +219,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               </div>
               <div className="h-4 w-px bg-red-500/20" />
               <div>
-                <span className="block text-[10px] text-slate-400 font-normal">Aproveitamento</span>
-                <span>{lastPlayer.winRate}%</span>
+                <span className="block text-[10px] text-slate-400 font-normal">Média/Jogo</span>
+                <span>{lastPlayer.pointsPerGame}</span>
               </div>
             </div>
           </div>
@@ -166,18 +229,32 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
 
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 glass p-3 rounded-2xl backdrop-blur-md">
-        {/* Filter Buttons */}
+        {/* Classification Mode Buttons */}
         <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto w-full sm:w-auto no-scrollbar pb-1 sm:pb-0">
           <button
-            onClick={() => setFilter('all')}
+            onClick={() => setFilter('points')}
             className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap flex items-center space-x-1.5 ${
-              filter === 'all'
+              filter === 'points'
                 ? 'bg-amber-400 text-slate-950 shadow-lg scale-105 ring-2 ring-amber-300'
                 : 'text-slate-200 hover:bg-white/10 hover:text-amber-300'
             }`}
+            title="Classificação por soma total de pontos"
           >
             <Trophy className="w-3.5 h-3.5" />
-            <span>Ranking Geral</span>
+            <span>Por Pontos Totais</span>
+          </button>
+
+          <button
+            onClick={() => setFilter('weighted')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+              filter === 'weighted'
+                ? 'bg-amber-400 text-slate-950 shadow-lg scale-105 ring-2 ring-amber-300'
+                : 'text-slate-200 hover:bg-white/10 hover:text-amber-300'
+            }`}
+            title="Classificação ponderada baseada na regularidade e quantidade de partidas"
+          >
+            <Scale className="w-3.5 h-3.5" />
+            <span>Média Ponderada (Jogos)</span>
           </button>
 
           <button
@@ -210,7 +287,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-emerald-400" />
           <input
             type="text"
-            placeholder="Buscar jogador..."
+            placeholder="Buscar jogador no ranking..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full glass-dark border border-white/15 rounded-xl py-1.5 pl-9 pr-3 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-amber-400"
@@ -221,21 +298,29 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
       {/* Animated Ranking Table */}
       <div className="glass rounded-[32px] shadow-2xl overflow-hidden border border-white/15">
         {/* Table Header */}
-        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 p-2.5 sm:p-4 glass-dark text-emerald-300 font-extrabold text-[10px] sm:text-xs uppercase tracking-wider border-b border-white/10">
+        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 p-2.5 sm:p-4 glass-dark text-emerald-300 font-extrabold text-[10px] sm:text-xs uppercase tracking-wider border-b border-white/10 items-center">
           <div className="col-span-2 sm:col-span-1 text-center">Pos.</div>
-          <div className="col-span-5 sm:col-span-5">Jogador & Título</div>
-          <div className="col-span-3 sm:col-span-3 text-center">Vit / Der</div>
-          <div className="col-span-2 sm:col-span-3 text-right">Pontos</div>
+          <div className="col-span-4 sm:col-span-4">Jogador & Título</div>
+          <div className="col-span-3 sm:col-span-3 text-center">Vit / Der / Jogos</div>
+          <div className="col-span-3 sm:col-span-4 text-right">
+            {filter === 'weighted' ? 'Média Ponderada / Jogo' : 'Pontuação Oficial'}
+          </div>
         </div>
 
         {/* Animated Rows List using Framer Motion */}
         <div className="divide-y divide-white/5">
           {sortedStats.length === 0 ? (
             <div className="p-8 text-center text-slate-300 text-sm">
-              Nenhum participante encontrado.{' '}
-              <button onClick={onOpenRegister} className="text-amber-400 font-bold underline">
-                Cadastrar um participante
-              </button>
+              {searchQuery ? (
+                <span>Nenhum participante com jogos encontrado para a busca.</span>
+              ) : (
+                <span>
+                  Nenhum jogador possui partidas registradas no momento.{' '}
+                  <button onClick={onOpenLogMatch} className="text-amber-400 font-bold underline">
+                    Registrar uma partida agora
+                  </button>
+                </span>
+              )}
             </div>
           ) : (
             <AnimatePresence mode="popLayout">
@@ -290,7 +375,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                     </div>
 
                     {/* Player Info: Nome & Título Sempre Visíveis */}
-                    <div className="col-span-5 sm:col-span-5 flex items-center space-x-2 sm:space-x-2.5 overflow-hidden">
+                    <div className="col-span-4 sm:col-span-4 flex items-center space-x-2 sm:space-x-2.5 overflow-hidden">
                       <BilliardBallAvatar
                         number={item.user.avatarBall}
                         color={item.user.avatarColor}
@@ -307,7 +392,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                         {/* Always Displayed Player Title */}
                         <div className="flex flex-wrap items-center gap-1 mt-0.5 text-[9px] sm:text-[10px]">
                           <span className="bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-extrabold border border-amber-400/30 truncate max-w-[100px] xs:max-w-[140px] sm:max-w-[200px]">
-                            {getPlayerTitle(item.user, item, stats.length)}
+                            {getPlayerTitle(item.user, item, sortedStats.length)}
                           </span>
 
                           {item.lambretasCount > 0 && (
@@ -333,18 +418,32 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                         <span className="text-emerald-400 font-extrabold">{item.wins}V</span> - <span className="text-red-400 font-extrabold">{item.losses}D</span>
                       </div>
                       <div className="text-[9px] sm:text-[10px] text-emerald-300 font-medium truncate">
-                        {item.winRate}% <span className="hidden sm:inline">aproveitamento ({item.matchesPlayed} jogos)</span>
+                        {item.winRate}% ({item.matchesPlayed} {item.matchesPlayed === 1 ? 'jogo' : 'jogos'})
                       </div>
                     </div>
 
-                    {/* Total Points */}
-                    <div className="col-span-2 sm:col-span-3 text-right">
-                      <div className="font-black text-amber-300 text-xs sm:text-base whitespace-nowrap">
-                        {item.points} pts
-                      </div>
-                      <div className="text-[9px] sm:text-[10px] text-emerald-400 font-medium hidden sm:block">
-                        (+3 / vitória +1 lambreta)
-                      </div>
+                    {/* Score / Weighted Output */}
+                    <div className="col-span-3 sm:col-span-4 text-right">
+                      {filter === 'weighted' ? (
+                        <div>
+                          <div className="font-black text-amber-300 text-xs sm:text-base whitespace-nowrap flex items-center justify-end space-x-1">
+                            <span className="text-emerald-400 text-xs font-semibold">Índice:</span>
+                            <span>{item.weightedAverage}</span>
+                          </div>
+                          <div className="text-[9px] sm:text-[10px] text-slate-300 font-medium">
+                            {item.pointsPerGame} pts/j • {item.points} pts totais
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-black text-amber-300 text-xs sm:text-base whitespace-nowrap">
+                            {item.points} pts
+                          </div>
+                          <div className="text-[9px] sm:text-[10px] text-emerald-400 font-medium hidden sm:block">
+                            ({item.pointsPerGame} pts/jogo • {item.lambretasCount > 0 ? `${item.lambretasCount} lambretas` : '1pt/vitória'})
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 );
@@ -353,7 +452,48 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Unranked Section (Players with 0 games) */}
+      {unrankedPlayers.length > 0 && (
+        <div className="glass-dark rounded-2xl p-4 border border-white/10 text-xs text-slate-300">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Users className="w-4 h-4 text-amber-400" />
+              <span className="font-bold text-slate-200">
+                Jogadores Cadastrados Sem Jogos ({unrankedPlayers.length})
+              </span>
+              <span className="text-[10px] text-amber-300/80 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+                Aguardando 1º confronto
+              </span>
+            </div>
+            <button
+              onClick={() => setShowUnranked(!showUnranked)}
+              className="text-amber-400 font-semibold hover:underline text-xs"
+            >
+              {showUnranked ? 'Ocultar' : 'Ver Jogadores'}
+            </button>
+          </div>
+
+          {showUnranked && (
+            <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {unrankedPlayers.map(u => (
+                <div
+                  key={u.user.id}
+                  className="flex items-center space-x-2 glass p-2 rounded-xl border border-white/10"
+                >
+                  <BilliardBallAvatar number={u.user.avatarBall} color={u.user.avatarColor} size="sm" />
+                  <div className="overflow-hidden text-left">
+                    <div className="font-bold text-slate-200 text-xs truncate">{u.user.nickname}</div>
+                    <div className="text-[10px] text-emerald-400 font-medium">0 jogos • Sem pontuação</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+
 

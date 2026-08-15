@@ -222,11 +222,11 @@ export const LogMatchModal: React.FC<LogMatchModalProps> = ({
                   <div className="font-extrabold text-amber-300 flex items-center space-x-1.5 text-sm">
                     <span>🚗💨 TEVE LAMBRETA / CAPOTE?</span>
                     <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full uppercase">
-                      +1 Ponto Extra
+                      3 Pontos (3 Vitórias)
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 mt-0.5">
-                    Marque se o vencedor ganhou de lavada sem o perdedor colocar nenhuma bola na caçapa. Concede 1 ponto bônus no ranking!
+                    Marque se o vencedor ganhou sem o perdedor colocar nenhuma bola na caçapa. Concede <strong>3 pontos</strong> (equivale a 3 vitórias) no lugar de 1 ponto!
                   </p>
                 </div>
               </label>

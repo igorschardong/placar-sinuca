@@ -24,7 +24,7 @@ const VICTORY_BANTERS = [
 const LAMBRETA_BANTERS = [
   '🚗💨 LEVOU DE LAMBRETA! NEM VIU A COR DA BOLA!',
   'CAPOTE TOTAL! DEIXOU O ADVERSÁRIO A VER NAVIOS!',
-  'LAVADA HISTÓRICA! PONTO EXTRA MERECIDO NO RANKING!'
+  'LAVADA HISTÓRICA! +3 PONTOS NO RANKING (EQUIVALE A 3 VITÓRIAS)!'
 ];
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({ match, users, onClose }) => {
@@ -115,7 +115,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({ match, users, onClos
               </div>
             </div>
             <div className="text-right">
-              <span className="text-emerald-400 font-black text-sm">VENCEU (+3)</span>
+              <span className="text-emerald-400 font-black text-sm">
+                {match.isLambreta ? 'VENCEU (+3 PTS)' : 'VENCEU (+1 PT)'}
+              </span>
             </div>
           </div>
 
@@ -128,7 +130,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({ match, users, onClos
               </div>
             </div>
             <div className="text-right">
-              <span className="text-red-400 font-bold text-xs">PERDEU</span>
+              <span className="text-red-400 font-bold text-xs">DERROTA (0 PT)</span>
             </div>
           </div>
         </div>
